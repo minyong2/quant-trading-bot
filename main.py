@@ -90,21 +90,56 @@ def run_trading_bot():
                     f"🔍 [{now.strftime('%H:%M:%S')}] {name}({code}): {current_price:,.0f}원 | RF: {up_prob}% | 신호: {signal} {state_str}")
 
                 if is_market_open:
-                    # [매도 로직]
+                    # --- [매도 로직] ---
                     if signal == "SELL" and discord_bot.order_states.get(code):
-                        res = kis_api.send_sell_order(kis_token, code, qty="all")  # 전량매도 함수화 필요
-                        if res.get('rt_cd') == '0':
-                            sync_balance_status(kis_token)  # 즉시 동기화
+                        # 1. 먼저 잔고를 조회해서 팔 수 있는 수량을 확인합니다.
+                        time.sleep(0.5)
+                        balance_res = kis_api.get_inquire_balance(kis_token)
+                        hold_qty = "0"
 
-                    # [매수 로직]
+                        if balance_res.get('rt_cd') == '0':
+                            for item in balance_res.get('output1', []):
+                                if item['pdno'] == code:
+                                    hold_qty = item['hldg_qty']
+                                    break
+
+                        # 2. 팔 주식이 있다면 매도 주문을 넣습니다.
+                        if int(hold_qty) > 0:
+                            res = kis_api.send_sell_order(kis_token, code, qty=hold_qty)
+
+                            # 3. 주문이 성공했는지 확인합니다.
+                            if res.get('rt_cd') == '0':
+                                print(f"✅ {name} 매도 주문 성공! 1초 후 잔고를 동기화합니다.")
+                                discord_bot.send_sync_message(f"📉 **[매도 완료]** {name}({code})\n수익률: {profit_rate:.2f}%")
+
+                                # 4. 초당 거래건수 초과 방지를 위해 1.5초 정도 충분히 쉽니다.
+                                time.sleep(1.5)
+                                sync_balance_status(kis_token)
+                        else:
+                            # 실제 잔고에 없으면 상태만 초기화합니다.
+                            discord_bot.order_states[code] = False
+
+                    # --- [매수 로직] ---
                     elif signal == "BUY" and not discord_bot.order_states.get(code) and up_prob >= 70:
-                        res = kis_api.send_buy_order(kis_token, code)
+                        orderable_cash = kis_api.get_orderable_cash(kis_token)
+
+                        if orderable_cash < current_price:
+                            print(f"⚠️ 잔액 부족으로 매수 스킵: {name} (필요: {current_price:,.0f}원 / 잔액: {orderable_cash:,.0f}원)")
+                            continue
+
+                        res = kis_api.send_buy_order(kis_token, code, qty="1")
+
                         if res.get('rt_cd') == '0':
-                            sync_balance_status(kis_token)  # 즉시 동기화
+                            print(f"✅ {name} 매수 주문 성공! 1.5초 후 잔고를 동기화합니다.")
+                            discord_bot.send_sync_message(f"🔥 **[매수 완료]** {name}({code})\n상승 확률: {up_prob}%")
+
+                            # 주문 성공 직후 너무 빨리 조회하면 차단되므로 충분히 쉽니다.
+                            time.sleep(1.5)
+                            sync_balance_status(kis_token)
 
             time.sleep(5)
         except Exception as e:
-            print(f"⚠️ 에러: {e}");
+            print(f"⚠️ 에러: {e}")
             time.sleep(10)
 
 

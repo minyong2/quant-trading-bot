@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import asyncio
 import kis_api
-import config
+import time
 import json
 import os
 
@@ -202,6 +202,7 @@ async def manual_buy(interaction: discord.Interaction, 종목: str, 수량: int 
 async def manual_sell(interaction: discord.Interaction, 종목: str, 수량: int = None):
     await interaction.response.defer()
 
+    # 1. 종목 코드 확인
     code = 종목 if 종목.isdigit() and len(종목) == 6 else km.get_code_from_name(종목)
     name = km.get_master_code_name(code) if km else 종목
 
@@ -209,23 +210,28 @@ async def manual_sell(interaction: discord.Interaction, 종목: str, 수량: int
         await interaction.followup.send(f"❌ '{종목}' 종목을 찾을 수 없습니다.")
         return
 
-    # 수량 미입력 시 전량 매도를 위해 잔고 확인
-    if 수량 is None:
-        balance_res = kis_api.get_inquire_balance(shared_token)
-        if balance_res.get('rt_cd') == '0':
-            for item in balance_res.get('output1', []):
-                if item['pdno'] == code:
-                    수량 = int(item['hldg_qty'])
-                    break
+    # 2. 잔고 조회 (API 호출 1)
+    time.sleep(0.5)  # 호출 전 짧은 휴식
+    balance_res = kis_api.get_inquire_balance(shared_token)
+
+    if 수량 is None and balance_res.get('rt_cd') == '0':
+        for item in balance_res.get('output1', []):
+            if item['pdno'] == code:
+                수량 = int(item['hldg_qty'])
+                break
 
     if not 수량 or 수량 <= 0:
-        await interaction.followup.send(f"⚠️ 보유 수량이 없거나 수량이 잘못되었습니다.")
+        await interaction.followup.send(f"⚠️ 보유 수량이 없거나 조회가 실패했습니다.")
         return
 
+    # 3. 매도 주문 실행 (API 호출 2)
+    time.sleep(1.0)  # 이전 호출(잔고조회)과 겹치지 않게 1초 대기
     res = kis_api.send_sell_order(shared_token, code, qty=str(수량))
 
     if res.get('rt_cd') == '0':
         await interaction.followup.send(f"📉 **[수동 매도 성공]** {name}({code}) {수량}주 매도 완료!")
+
+        # 4. 잔고 동기화 유도 (선택 사항)
     else:
         await interaction.followup.send(f"❌ 매도 실패: {res.get('msg1')}")
 

@@ -25,6 +25,35 @@ def get_access_token():
 
     return res_json['access_token']
 
+def get_orderable_cash(token):
+    """실제 주문 가능한 순수 현금 잔고 조회"""
+    url = f"{config.URL_BASE}/uapi/domestic-stock/v1/trading/inquire-psbl-order"
+    headers = {
+        "Content-Type": "application/json",
+        "authorization": f"Bearer {token}",
+        "appkey": config.APP_KEY,
+        "appsecret": config.APP_SECRET,
+        "tr_id": config.TR_ID_ORDER_POSSIBLE  # 모의투자용 (실전은 'TTTC8908R')
+    }
+    params = {
+        "CANO": config.CANO,
+        "ACNT_PRDT_CD": config.ACNT_PRDT_CD,
+        "PDNO": "",
+        "ORD_UNPR": "0",
+        "ORD_DVSN": "01", # 시장가 기준
+        "CMA_EVLU_AMT_ICLD_YN": "Y",
+        "OVRS_ICLD_YN": "N"
+    }
+    try:
+        res = requests.get(url, headers=headers, params=params)
+        data = res.json()
+        if data.get('rt_cd') == '0':
+            # nrcv_buy_amt: 미수 없는 순수 현금 주문 가능 금액
+            # return int(data['output']['nrcv_buy_amt'])
+            return int(data['output']['ord_psbl_cash'])
+        return 0
+    except:
+        return 0
 
 # 내 계좌 잔고(예수금) 조회 함수
 def get_balance(token):
@@ -56,7 +85,7 @@ def send_buy_order(token, ticker, qty="1"):
         "authorization": f"Bearer {token}",
         "appkey": config.APP_KEY,
         "appsecret": config.APP_SECRET,
-        "tr_id": "VTTC0802U",  # 'TTTC0802U'(실전) , 'VTTC0802U'(모의)
+        "tr_id": config.TR_ID_ORDER_CASH,  # 'TTTC0802U'(실전) , 'VTTC0802U'(모의)
         "custtype": "P",
         "custid": "owow77",
         "hashkey": ""
@@ -80,7 +109,7 @@ def send_sell_order(token, ticker, qty="1"):
         "authorization": f"Bearer {token}",
         "appkey": config.APP_KEY,
         "appsecret": config.APP_SECRET,
-        "tr_id": "VTTC0802U",  # 'TTTC0802U'(실전) , 'VTTC0802U'(모의)
+        "tr_id": config.TR_ID_ORDER_CASH,  # 'TTTC0802U'(실전) , 'VTTC0802U'(모의)
         "custtype": "P",
         "custid": "owow77",
         "hashkey": ""
@@ -105,7 +134,7 @@ def get_inquire_balance(token):
         "authorization": f"Bearer {token}",
         "appkey": config.APP_KEY,
         "appsecret": config.APP_SECRET,
-        "tr_id": "VTTC8434R",  # 모의투자: 'VTTC8434R', 실전투자: 'TTTC8434R'
+        "tr_id": config.TR_ID_BALANCE,
     }
     params = {
         "CANO": config.CANO,  # 계좌번호 앞 8자리
