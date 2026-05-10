@@ -162,6 +162,7 @@ def get_inquire_balance(token):
         print(f"❌ 한투 잔고 조회 API 호출 에러: {e}")
         return {"rt_cd": "7", "msg1": str(e)}
 
+
 #
 # def get_overseas_ohlcv(token, ticker):
 #     """미국 주식 분봉/일봉 데이터를 가져옵니다. (감시용)"""
@@ -200,6 +201,8 @@ def get_inquire_balance(token):
 #     else:
 #         print(f"❌ 해외 시세 조회 실패: {data.get('msg1')}")
 #         return None
+
+
 
 
 if __name__ == "__main__":
