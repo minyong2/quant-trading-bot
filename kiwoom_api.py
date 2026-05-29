@@ -1,6 +1,7 @@
 from pykiwoom.kiwoom import *
 import pandas as pd
 import time
+import sys, os
 
 
 pd.options.mode.chained_assignment = None
@@ -14,20 +15,28 @@ class KiwoomManager:
     def get_current_price(self, code):
         """현재가 한 개만 가져오기"""
         try:
+
+            sys.stdout = open(os.devnull, 'w')
             df = self.kiwoom.block_request("opt10001",
                                            종목코드=code,
                                            output="주식기본정보",
                                            next=0,
                                            show=False)
+            # --- 로그 켜기 복구 ---
+            sys.stdout = sys.__stdout__
+
             if df is not None and not df.empty:
                 return abs(int(df['현재가'].iloc[0]))
             return None
         except Exception as e:
+            sys.stdout = sys.__stdout__ # 에러 발생 시에도 복구
             print(f"❌ 현재가 조회 에러: {e}")
             return None
 
     def get_ohlcv(self, code, interval='day', count=100):
         try:
+            # --- 로그 끄기 시작 ---
+            sys.stdout = open(os.devnull, 'w')
             df = self.kiwoom.block_request("opt10081",
                                            종목코드=code,
                                            기준일자=time.strftime('%Y%m%d'),
@@ -35,6 +44,8 @@ class KiwoomManager:
                                            output="주식일봉차트조회",
                                            next=0,
                                            show=False)
+            # --- 로그 켜기 복구 ---
+            sys.stdout = sys.__stdout__
 
             if df is None or df.empty:
                 return None

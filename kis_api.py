@@ -15,13 +15,11 @@ def get_access_token():
     }
     res = requests.post(url, headers=headers, data=json.dumps(body))
 
-    # --- 추가된 디버깅 코드 ---
     res_json = res.json()
     if 'access_token' not in res_json:
         print("❌ 토큰 발급 실패!")
         print(f"응답 내용: {json.dumps(res_json, indent=4, ensure_ascii=False)}")
         return None
-    # -----------------------
 
     return res_json['access_token']
 
@@ -101,22 +99,28 @@ def send_buy_order(token, ticker, qty="1"):
     res = requests.post(url, headers=headers, data=json.dumps(data))
     return res.json()
 
+
 def send_sell_order(token, ticker, qty="1"):
     """국내주식 현금 매도 주문 (시장가)"""
     url = f"{config.URL_BASE}/uapi/domestic-stock/v1/trading/order-cash"
+
     headers = {
         "Content-Type": "application/json",
         "authorization": f"Bearer {token}",
         "appkey": config.APP_KEY,
         "appsecret": config.APP_SECRET,
-        "tr_id": config.TR_ID_ORDER_CASH,  # 'TTTC0802U'(실전) , 'VTTC0802U'(모의)
+        "tr_id": "VTTC0801U",  # 👈 반드시 'VTTC0801U'로 수정! (끝자리가 1입니다)
         "custtype": "P",
         "custid": "owow77",
         "hashkey": ""
     }
     data = {
-        "CANO": config.CANO, "ACNT_PRDT_CD": config.ACNT_PRDT_CD,
-        "PDNO": ticker, "ORD_DVSN": "01", "ORD_QTY": str(qty), "ORD_UNPR": "0",
+        "CANO": config.CANO,
+        "ACNT_PRDT_CD": config.ACNT_PRDT_CD,
+        "PDNO": ticker,
+        "ORD_DVSN": "01",  # 시장가
+        "ORD_QTY": str(qty),
+        "ORD_UNPR": "0",
     }
     res = requests.post(url, headers=headers, data=json.dumps(data))
     return res.json()
